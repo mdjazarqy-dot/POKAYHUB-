@@ -3,7 +3,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- KONFIGURASI GITHUB (GANTI LINK INI)
-local jsonUrl = "https://raw.githubusercontent.com/Username/Repo/main/data.json"
+local jsonUrl = "https://raw.githubusercontent.com/mdjazarqy-dot/POKAYHUB-/main/data.json"
 local fileName = "PokayHub_Storage.json"
 
 -- FUNGSI AMBIL DATA & SIMPAN LOKAL
