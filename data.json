@@ -1,0 +1,14 @@
+{
+  "Whitelist": [
+    12345678,
+    "hasimkipui"
+  ],
+  "MountScripts": [
+    {"Title": "Mount Aurorise", "Desc": "AutoWalk Mt Aurorise", "Url": "https://raw.githubusercontent.com/itwasabraham/roblox-checkpoints/refs/heads/main/ewew"},
+    {"Title": "Mount SpeedTang", "Desc": "AutoWalk Mt SpeedTang", "Url": "https://raw.githubusercontent.com/ayizxmarv-rgb/AyizXMarV/refs/heads/main/speedtang.lua"}
+  ],
+  "UtilityScripts": [
+    {"Title": "The Forge", "Desc": "Airflow The Forge", "Url": "https://airflowscript.com/loader"},
+    {"Title": "Marv", "Desc": "Marv Other Script", "Url": "https://marvscript.my.id/scripts/MarV"}
+  ]
+}
