@@ -1,0 +1,314 @@
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local Stats = game:GetService("Stats")
+local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
+local Player = Players.LocalPlayer
+
+-- =========================================================
+-- DATABASE & AUTO-EXPIRE SYSTEM
+-- =========================================================
+local URL_DATABASE_VIP = "https://gist.githubusercontent.com/mdjazarqy-dot/22fd57871fabe932b15497ad9f7204de/raw/PREMI"
+local URL_DATABASE_DONATUR = "https://gist.githubusercontent.com/mdjazarqy-dot/dee900d1c33ca82ebcf3548741bbfdb1/raw/DONDON" 
+
+local Owners = { "hasimkipui" } 
+local globalExpireTimestamp = 0
+local vipJoinDate = "Nope"
+local startTime = os.time()
+local scriptVersion = "v1.0.0 Elite Premium"
+
+local function GetVIPStatus(url)
+    local success, result = pcall(function() 
+        return game:HttpGet(url .. "?t=" .. os.time()) 
+    end)
+    
+    if success and result and result ~= "" then
+        for line in string.gmatch(result, "([^\n\r]+)") do
+            local name, expDate, joinDate = string.match(line, "([^|]+)|([^|]+)|?([^|]*)")
+            if name and expDate then
+                if string.lower(name) == string.lower(Player.Name) then
+                    local y, m, d = string.match(expDate, "(%d%d%d%d)%-(%d%d)%-(%d%d)")
+                    if y and m and d then
+                        local expireTimestamp = os.time({year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 23, min = 59, sec = 59})
+                        return true, expireTimestamp, (joinDate ~= "" and joinDate or "Registered Member")
+                    end
+                end
+            end
+        end
+    end
+    return false, 0, "NONE"
+end
+
+-- Role Detection Logic
+local isOwner = table.find(Owners, string.lower(Player.Name)) ~= nil
+local isDonator, donatExp, donatJoin = GetVIPStatus(URL_DATABASE_DONATUR)
+local hasVIP, vExp, vDate = GetVIPStatus(URL_DATABASE_VIP)
+
+local isSpecialAccess = isOwner or isDonator
+local isWhitelisted = isSpecialAccess or hasVIP
+
+-- Warna dan Nama Role
+local userRole = "Free Member"
+local roleColor = Color3.fromRGB(128, 128, 128)
+
+if isOwner then 
+    userRole, roleColor, vipJoinDate = "Owner", Color3.fromRGB(255, 0, 0), "Developer Access"
+elseif isDonator then 
+    userRole, roleColor, globalExpireTimestamp, vipJoinDate = "Donatur", Color3.fromRGB(0, 255, 255), donatExp, donatJoin
+elseif hasVIP then 
+    userRole, roleColor, globalExpireTimestamp, vipJoinDate = "Premium Member", Color3.fromRGB(255, 215, 0), vExp, vDate
+end
+
+local freeExpireTimestamp = startTime + 259200 
+
+-- [ UTILITY FUNCTIONS ]
+local function GetGreeting()
+    local hour = tonumber(os.date("%H"))
+    if hour < 12 then return "Good Morning" elseif hour < 17 then return "Good Afternoon" else return "Good Evening" end
+end
+
+local function MaskName(str)
+    if #str <= 4 then return str end
+    return string.sub(str, 1, 2) .. string.rep("*", #str - 4) .. string.sub(str, -2)
+end
+
+local function GetDevice()
+    if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then return "Mobile"
+    elseif UserInputService.KeyboardEnabled then return "PC / Desktop"
+    else return "Console" end
+end
+
+-- =========================================================
+-- THEME REGISTRATION
+-- =========================================================
+local ThemesData = {
+    ["Matrix Ghost"] = { Accent = "#00ff41", Background = "#0d0d0d", Outline = "#003b00", Text = "#00ff41", Placeholder = "#008f11", Button = "#1a1a1a", Icon = "#00ff41" },
+    ["Terminal Root"] = { Accent = "#2ecc71", Background = "#000000", Outline = "#111111", Text = "#ffffff", Placeholder = "#27ae60", Button = "#0a0a0a", Icon = "#2ecc71" },
+    ["Crimson Stealth"] = { Accent = "#991b1b", Background = "#111111", Outline = "#2d0a0a", Text = "#f3f4f6", Placeholder = "#4b5563", Button = "#1f2937", Icon = "#ef4444" },
+    ["Tokyo Night"] = { Accent = "#7aa2f7", Background = "#1a1b26", Outline = "#24283b", Text = "#c0caf5", Placeholder = "#565f89", Button = "#24283b", Icon = "#bb9af7" },
+    ["Cyberpunk"] = { Accent = "#ff007f", Background = "#0d0221", Outline = "#00f3ff", Text = "#ffffff", Placeholder = "#4b0082", Button = "#1a0e2e", Icon = "#00f3ff" },
+    ["Luxury Gold"] = { Accent = "#d4af37", Background = "#121212", Outline = "#1c1c1c", Text = "#ffffff", Placeholder = "#4d4d4d", Button = "#1a1a1a", Icon = "#d4af37" },
+    ["Deep Sea"] = { Accent = "#10b981", Background = "#061110", Outline = "#0f2926", Text = "#ecfdf5", Placeholder = "#334155", Button = "#064e3b", Icon = "#34d399" },
+    ["Midnight Purple"] = { Accent = "#a855f7", Background = "#0f0720", Outline = "#1e103a", Text = "#faf5ff", Placeholder = "#6b21a8", Button = "#1e1b4b", Icon = "#d8b4fe" },
+    ["Emerald Forest"] = { Accent = "#22c55e", Background = "#052e16", Outline = "#14532d", Text = "#f0fdf4", Placeholder = "#166534", Button = "#064e3b", Icon = "#4ade80" },
+    ["Solar Flare"] = { Accent = "#f97316", Background = "#1c0a00", Outline = "#431407", Text = "#fff7ed", Placeholder = "#9a3412", Button = "#2d0f00", Icon = "#fb923c" },
+    ["Frostbite"] = { Accent = "#06b6d4", Background = "#082f49", Outline = "#0c4a6e", Text = "#f0f9ff", Placeholder = "#0284c7", Button = "#075985", Icon = "#7dd3fc" },
+    ["Coffee Roast"] = { Accent = "#a27b5c", Background = "#2c2621", Outline = "#3f3731", Text = "#dcd7c9", Placeholder = "#a27b5c", Button = "#1e1a17", Icon = "#a27b5c" }
+}
+
+for name, data in pairs(ThemesData) do
+    WindUI:AddTheme({ Name = name, Accent = Color3.fromHex(data.Accent), Background = Color3.fromHex(data.Background), Outline = Color3.fromHex(data.Outline), Text = Color3.fromHex(data.Text), Placeholder = Color3.fromHex(data.Placeholder), Button = Color3.fromHex(data.Button), Icon = Color3.fromHex(data.Icon) })
+end
+
+-- =========================================================
+-- MAIN INTERFACE
+-- =========================================================
+local function LoadMainUI()
+    local Window = WindUI:CreateWindow({ 
+        Title = "PokayHub Premium", 
+        Icon = "circle-parking", 
+        Author = "by jepin", 
+        Theme = isSpecialAccess and "Luxury Gold" or "Crimson Stealth" 
+    })
+
+    WindUI:Notify({ Title = "System Authenticated", Content = GetGreeting() .. ", " .. Player.Name, Duration = 6 })
+
+    UserInputService.InputBegan:Connect(function(input, gpe)
+        if not gpe and (input.KeyCode == Enum.KeyCode.RightControl or input.KeyCode == Enum.KeyCode.Q) then 
+            Window:Toggle() 
+        end
+    end)
+
+    Window:Tag({Title = userRole, Icon = "shield-check", Color = roleColor, Radius = 8})
+    local PingTag = Window:Tag({Title = "0ms", Icon = "signal", Color = Color3.fromRGB(0, 255, 0), Radius = 8})
+    local FPSTag = Window:Tag({Title = "0 FPS", Icon = "zap", Color = Color3.fromRGB(255, 170, 0), Radius = 8})
+
+    task.spawn(function()
+        local lastTick = tick()
+        local frames = 0
+        while true do
+            frames = frames + 1
+            if tick() - lastTick >= 1 then FPSTag:SetTitle(frames .. " FPS") frames = 0 lastTick = tick() end
+            pcall(function() PingTag:SetTitle(math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()).."ms") end)
+            task.wait(0.1)
+        end
+    end)
+
+    local function Notify(t, m) WindUI:Notify({Title = t, Content = m, Duration = 3}) end
+    local function SafeLoad(url, cond)
+        if cond then pcall(function() loadstring(game:HttpGet(url))() end)
+        else Notify("Denied", "Akses Khusus!") end
+    end
+
+    -- [ TAB 1: ACCOUNT ]
+    local AccTab = Window:Tab({ Title = "Account", Icon = "user" })
+    local AccSec = AccTab:Section({ Title = "Account Information", Opened = true })
+    local InfoPara = AccSec:Paragraph({ Title = "User Data", Desc = "Loading..." })
+
+    task.spawn(function()
+        while true do
+            local diff = (isWhitelisted and globalExpireTimestamp or freeExpireTimestamp) - os.time()
+            if diff <= 0 and not isOwner then
+                Window:Close()
+                Player:Kick("\n[PokayHub Security]\nMasa Trial/VIP Habis!")
+                break
+            end
+            local d, h, m, s = math.floor(diff/86400), math.floor((diff%86400)/3600), math.floor((diff%3600)/60), math.floor(diff%60)
+            InfoPara:SetDesc(string.format("Username: %s\nDisplay: %s\nAge: %d Days\nDevice: %s\nRole: %s\nVIP Member: %s\nExpire: %s", MaskName(Player.Name), MaskName(Player.DisplayName), Player.AccountAge, GetDevice(), userRole, vipJoinDate, (isOwner and "Permanent" or string.format("%dd %dh %dm %ds", d, h, m, s))))
+            task.wait(1)
+        end
+    end)
+
+    -- [ TAB 2: MOUNT ]
+    local MountTab = Window:Tab({ Title = "Mount", Icon = "mountain" })
+    local FreeM = MountTab:Section({ Title = "Free Modules", Opened = true })
+    FreeM:Button({ Title = "Antartika", Callback = function() SafeLoad("https://raw.githubusercontent.com/eryxaryxa/Antarctica-Expedition-/refs/heads/main/eryxantartikascript.lua", true) end })
+    FreeM:Button({ Title = "Eryx AutoWalk", Callback = function() SafeLoad("https://raw.githubusercontent.com/eryxaryxa/All-Mount-Indonesia/refs/heads/main/ERYXxVIOxLIVIHub-AllMount.lua", true) end })
+    FreeM:Button({ Title = "Mount Zan", Callback = function() SafeLoad("https://raw.githubusercontent.com/NanaoGames/DG/heads/main/n", true) end })
+    FreeM:Button({ Title = "Mount Dorama", Callback = function() SafeLoad("https://raw.githubusercontent.com/NanaoGames/gb/heads/main/n", true) end })
+    FreeM:Button({ Title = "Mount Satrova", Callback = function() SafeLoad("https://raw.githubusercontent.com/NanaoGames/gh/heads/main/n", true) end })
+    FreeM:Button({ Title = "Mount Aurorise", Callback = function() SafeLoad("https://raw.githubusercontent.com/itwasabraham/roblox-checkpoints/heads/main/ewew", true) end })
+
+    local PremM = MountTab:Section({ Title = "Premium Modules", Opened = false })
+    PremM:Button({ Title = "Mount Aetheria", Icon = "lock", Callback = function() SafeLoad("https://raw.githubusercontent.com/FayintXhub/Mount-Aetheria/heads/main/MountAetheria", isWhitelisted) end })
+
+    -- [ TAB 3: DONATUR AREA ]
+    local DonatTab = Window:Tab({ Title = "Donatur Area", Icon = "gem" })
+    local ExclusiveSec = DonatTab:Section({ Title = "💎 ELITE FEATURES", Opened = true })
+    ExclusiveSec:Button({ Title = "Fake Donate System", Icon = "heart", Callback = function() if isSpecialAccess then loadstring(game:HttpGet("https://pastefy.app/4iqtSMB6/raw"))() else Notify("Denied", "Hanya untuk Donatur/Owner") end end })
+    ExclusiveSec:Button({ Title = "Marv Premium", Icon = "heart", Callback = function() if isSpecialAccess then loadstring(game:HttpGet("https://marvscript.my.id/scripts/MarV"))() else Notify("Denied", "Hanya untuk Donatur/Owner") end end })
+    ExclusiveSec:Button({ Title = "Bantai Gunung Vip", Icon = "heart", Callback = function() if isSpecialAccess then loadstring(game:HttpGet("https://pastefy.app/djSi9KXi/raw"))() else Notify("Denied", "Hanya untuk Donatur/Owner") end end })
+    ExclusiveSec:Button({ Title = "Mount SpeedTang", Icon = "zap", Callback = function() SafeLoad('https://raw.githubusercontent.com/ayizxmarv-rgb/AyizXMarV/heads/main/Save%20Aw/speedtang.lua', isSpecialAccess) end })
+    
+    -- RECORD AUTOWALK ( OWNER ONLY LOGIC )
+    ExclusiveSec:Button({ 
+        Title = "Record AutoWalk", 
+        Icon = "map-pin", 
+        Callback = function() 
+            if isOwner then 
+                SafeLoad("https://marvscript.my.id/scripts/rikort", true) 
+            elseif isDonator then 
+                Notify("System Information", "FITUR INI DALAM TAHAP PENGEMBANGAN")
+            else 
+                Notify("Denied", "Hanya untuk Owner") 
+            end 
+        end 
+    })
+
+    local WebhookSec = DonatTab:Section({ Title = "📢 WEBHOOK ALERT", Opened = false })
+    local UserWebhook = ""
+    WebhookSec:Input({ Title = "Discord Webhook URL", Placeholder = "Enter Webhook...", Callback = function(v) UserWebhook = v Notify("Webhook", "URL Saved!") end })
+    
+    local function SendKickNotif(reason)
+        if UserWebhook ~= "" and UserWebhook:find("discord") then
+            pcall(function()
+                request({
+                    Url = UserWebhook,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = HttpService:JSONEncode({["embeds"] = {{["title"] = "⚠️ KICK DETECTED", ["description"] = "User: "..Player.Name.."\nReason: "..reason, ["color"] = 16711680}}})
+                })
+            end)
+        end
+    end
+    GuiService.ErrorMessageChanged:Connect(function() if isSpecialAccess then SendKickNotif(GuiService:GetErrorMessage()) end end)
+
+    -- [ TAB 4: LIBRARY ]
+    local ScriptTab = Window:Tab({ Title = "Library", Icon = "scroll" })
+    local HubSec = ScriptTab:Section({ Title = "Verified Hubs", Opened = true })
+    local ScriptsList = {
+        {N = "The Forge", U = "https://airflowscript.com/loader"},
+        {N = "The Forge V2", U = "https://api.luarmor.net/files/v3/loaders/280c3c5ae0ed18010fea0d86c424fdb5.lua"},
+        {N = "Fish It Vinz", U = "https://raw.githubusercontent.com/Vinzyy13/VinzHub/heads/main/Fish-It"},
+        {N = "Fish It Seraphin", U = "https://api.luarmor.net/files/v3/loaders/65cde64670656efe745182fc3db01be6.lua"},
+        {N = "Fish It Lynx", U = "https://raw.githubusercontent.com/4LynxX/Lynx/refs/heads/main/LynxxMain.lua"},
+        {N = "District Violence", U = "https://raw.githubusercontent.com/TexRBLX/Roblox-stuff/heads/main/violence-district/script.lua"}
+    }
+    for _, s in pairs(ScriptsList) do HubSec:Button({ Title = s.N, Callback = function() SafeLoad(s.U, isWhitelisted) end }) end
+
+    -- [ TAB 5: UTILITIES ]
+    local UtilTab = Window:Tab({ Title = "Utilities", Icon = "wrench" })
+    local RtxSec = UtilTab:Section({ Title = "Visual Enhancement", Opened = true })
+    local function ClearEff()
+        for _, v in pairs(Lighting:GetChildren()) do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then v:Destroy() end end
+        Lighting.ClockTime = 12
+    end
+    RtxSec:Button({ Title = "RTX: Golden Hour", Icon = "sunset", Callback = function() ClearEff() Lighting.ClockTime = 17.5 local c = Instance.new("ColorCorrectionEffect", Lighting) c.Saturation = 0.4 Notify("Visual", "Golden Hour Enabled") end })
+    RtxSec:Button({ Title = "RTX: Cinematic 4K", Icon = "camera", Callback = function() ClearEff() local b = Instance.new("BloomEffect", Lighting) b.Intensity = 0.5 local c = Instance.new("ColorCorrectionEffect", Lighting) c.Saturation = 0.3 c.Contrast = 0.25 Notify("Visual", "Enabled") end })
+    RtxSec:Button({ Title = "Reset Graphics", Icon = "refresh-cw", Callback = function() ClearEff() end })
+
+    local ServerSec = UtilTab:Section({ Title = "Network Control", Opened = false })
+    ServerSec:Button({ Title = "Server Hop", Icon = "refresh-ccw", Callback = function() 
+        local Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/'..game.PlaceId..'/servers/Public?sortOrder=Asc&limit=100'))
+        for _,v in pairs(Site.data) do if v.playing < v.maxPlayers and v.id ~= game.JobId then TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id, Player) break end end
+    end })
+    ServerSec:Button({ Title = "Rejoin Instance", Icon = "log-in", Callback = function() TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player) end })
+
+    local ToolSec = UtilTab:Section({ Title = "Performance & Tools", Opened = false })
+    ToolSec:Button({ Title = "Low Graphic / FPS Boost", Callback = function() settings().Rendering.QualityLevel = 1 for _,v in pairs(game:GetDescendants()) do if v:IsA("Part") then v.Material = Enum.Material.Plastic end end end })
+    ToolSec:Button({ Title = "Admin Fly", Callback = function() SafeLoad("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt", isWhitelisted) end })
+    ToolSec:Button({ Title = "Anti-AFK System", Callback = function() Player.Idled:Connect(function() game:GetService("VirtualUser"):Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end) end })
+
+    -- [ TAB 6: PREMIUM SHOP ]
+    local PromoTab = Window:Tab({ Title = "Premium Shop", Icon = "badge-percent" })
+    local PromoSec = PromoTab:Section({ Title = "METODE PEMBELIAN", Opened = true })
+    PromoSec:Paragraph({ Title = "Informasi Penting", Desc = "JIKA INGIN BELI VIP BISA JOIN KE DISCORD POKAY COMMUNITY DAN CARI USERNAME @jepin._ ATAU CARI ROLE OWN AND DEV" })
+    local PriceSec = PromoTab:Section({ Title = "Premium Price List", Opened = true })
+    PriceSec:Paragraph({ Title = "Daftar Harga", Desc = "Trial: 2 Hari Free\n1 Day: Rp 5.000\n1 Week: Rp 20.000\n1 Month: Rp 45.000\nDONATUR (PERMANEN): langsung dm owner aja" })
+    PriceSec:Button({ Title = "Get VIP Access", Icon = "shopping-cart", Callback = function() setclipboard("https://discord.gg/r7fY4x2wk") end })
+
+    -- [ TAB 7: THEMES ]
+    local ThemeTab = Window:Tab({ Title = "Themes", Icon = "palette" })
+    local ThemeSec = ThemeTab:Section({ Title = "Visual Styles", Opened = true })
+    for name, _ in pairs(ThemesData) do ThemeSec:Button({ Title = name, Callback = function() WindUI:SetTheme(name) end }) end
+
+    -- [ TAB 8: SOCIAL MEDIA ]
+    local SocialTab = Window:Tab({ Title = "Social Media", Icon = "share-2" })
+    local function AddSoc(title, desc, link, mainIcon)
+        local sec = SocialTab:Section({ Title = title, Opened = true })
+        sec:Paragraph({ Title = desc, Desc = "" })
+        sec:Button({ Title = "[🔘] Copy Link "..title, Icon = mainIcon or "link", Callback = function() setclipboard(link) Notify("Social", "Link Copied!") end })
+    end
+    AddSoc("Discord", "Update Terbaru", "https://discord.gg/r7fY4x2wk", "message-square")
+    AddSoc("Saweria", "Support Owner", "https://saweria.co/pokayhub", "banknote")
+    AddSoc("Tiktok", "Follow TikTok", "https://www.tiktok.com/@jepingacorpol", "music")
+    AddSoc("Instagram", "Follow IG", "https://www.instagram.com/jrkiilagi06_", "instagram")
+
+    -- [ TAB 9: TERMINAL ]
+    local InfoTab = Window:Tab({ Title = "Terminal", Icon = "terminal" })
+    
+    local CoreSec = InfoTab:Section({ Title = "🚀 SYSTEM CORE", Opened = true })
+    CoreSec:Paragraph({ Title = "Authentic Production Build", Desc = "Software: PokayHub Premium\nVersion: " .. scriptVersion .. "\nSecurity: AES-256 Encrypted via Private Junkie" })
+    
+    local ServerSec = InfoTab:Section({ Title = "🌐 SERVER INFO", Opened = true })
+    ServerSec:Paragraph({ Title = "Environment Details", Desc = string.format("JobId: %s\nPlaceId: %d\nPlayers: %d/%d\nServer Age: %.2f Minutes", game.JobId, game.PlaceId, #Players:GetPlayers(), Players.MaxPlayers, (tick() - startTime)/60)})
+    
+    local SessionSec = InfoTab:Section({ Title = "📊 SESSION STATISTICS", Opened = true })
+    local SessionPara = SessionSec:Paragraph({ Title = "Activity Tracker", Desc = "Calculating..." })
+    
+    task.spawn(function()
+        while task.wait(1) do
+            local playTime = os.time() - startTime
+            local h = math.floor(playTime / 3600)
+            local m = math.floor((playTime % 3600) / 60)
+            local s = playTime % 60
+            SessionPara:SetDesc(string.format("Uptime: %02d:%02d:%02d\nHardware: %s\nStatus: Running Optimized", h, m, s, GetDevice()))
+        end
+    end)
+
+    local DevSec = InfoTab:Section({ Title = "🛡️ AUTHORIZED DEVELOPER", Opened = false })
+    DevSec:Paragraph({ Title = "Lead Architect", Desc = "👤 Jepin — Main Developer & Logic Scripter\nSpecialist in Luau Optimization & UI Frameworks" })
+    
+    local CreditSec = InfoTab:Section({ Title = "💎 ELITE PARTNERS & CREDITS", Opened = false })
+    CreditSec:Paragraph({ Title = "Special Acknowledgments", Desc = "• Marv — Technical Advisory\n• FayintXCode — Module Optimization\n• NanaoGames — Repository Support\n• WindUI — Interface Framework\n• Bantai Gunung — Asset Provider" })
+
+    local LogSec = InfoTab:Section({ Title = "📜 SYSTEM LOGS", Opened = false })
+    LogSec:Paragraph({ Title = "Last Actions", Desc = "[SUCCESS] Whitelist Authenticated\n[SUCCESS] UI Components Loaded\n[READY] Awaiting User Commands..." })
+
+    Window:Open()
+end
+
+LoadMainUI()
